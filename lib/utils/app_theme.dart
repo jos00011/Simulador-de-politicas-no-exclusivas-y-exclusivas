@@ -18,7 +18,7 @@ class AppTheme {
   static const Color sepia = Color(0xFFA08050);
   static const Color rust = Color(0xFFC0522A);
 
-  // Process colors
+  // Process colors — 16 distinct colors, well spaced
   static const List<Color> processColors = [
     Color(0xFFD4A843), // amber
     Color(0xFF4ECDC4), // teal
@@ -30,11 +30,28 @@ class AppTheme {
     Color(0xFFD175A0), // rose
     Color(0xFF82C099), // mint
     Color(0xFFCB8F3E), // gold
+    Color(0xFF6EC6E6), // sky blue
+    Color(0xFFE6956E), // peach
+    Color(0xFFB5D86E), // lime
+    Color(0xFFB06EC6), // purple
+    Color(0xFF6EB5D8), // cerulean
+    Color(0xFFD86E6E), // red
   ];
 
+  /// Assigns color based on the full ID string (hash), not just first char.
+  /// This ensures A, B, C, D... all get different colors.
   static Color processColor(String id) {
-    final idx = id.codeUnitAt(0) % processColors.length;
-    return processColors[idx];
+    // Use a hash of the full string for better distribution
+    int hash = 0;
+    for (int i = 0; i < id.length; i++) {
+      hash = (hash * 31 + id.codeUnitAt(i)) & 0xFFFFFFFF;
+    }
+    return processColors[hash.abs() % processColors.length];
+  }
+
+  /// Returns color by sequential index — use when you have an ordered list
+  static Color processColorByIndex(int index) {
+    return processColors[index % processColors.length];
   }
 
   static ThemeData get darkTheme => ThemeData(
@@ -70,7 +87,7 @@ class AppTheme {
             borderSide: const BorderSide(color: amber),
           ),
           labelStyle: const TextStyle(color: sepia),
-          hintStyle: TextStyle(color: Color(0x80A08050)),
+          hintStyle: const TextStyle(color: Color(0x80A08050)),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(

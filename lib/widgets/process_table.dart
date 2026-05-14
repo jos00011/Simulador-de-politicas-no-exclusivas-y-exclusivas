@@ -18,8 +18,8 @@ class ProcessResultTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (processes.isEmpty) {
-      return Center(
-        child: Text('Sin resultados', style: const TextStyle(color: AppTheme.sepia)),
+      return const Center(
+        child: Text('Sin resultados', style: TextStyle(color: AppTheme.sepia)),
       );
     }
 
@@ -149,14 +149,14 @@ class EditableProcessTable extends StatelessWidget {
           const Divider(height: 1, color: AppTheme.border),
           Expanded(
             child: processes.isEmpty
-                ? Center(
+                ? const Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.inbox_outlined, color: AppTheme.sepia, size: 32),
-                        const SizedBox(height: 8),
+                        Icon(Icons.inbox_outlined, color: AppTheme.sepia, size: 32),
+                        SizedBox(height: 8),
                         Text('Sin procesos. Agrega uno o carga un archivo.',
-                            style: const TextStyle(color: AppTheme.sepia, fontSize: 12)),
+                            style: TextStyle(color: AppTheme.sepia, fontSize: 12)),
                       ],
                     ),
                   )

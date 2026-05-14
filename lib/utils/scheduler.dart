@@ -132,7 +132,7 @@ class Scheduler {
 
       if (selected.id != lastPid) {
         if (lastPid != null) {
-          gantt.add(GanttEntry(processId: lastPid!, startTime: lastStart, endTime: currentTime, isIdle: lastPid == 'IDLE'));
+          gantt.add(GanttEntry(processId: lastPid, startTime: lastStart, endTime: currentTime, isIdle: lastPid == 'IDLE'));
         }
         lastPid = selected.id;
         lastStart = currentTime;
@@ -154,7 +154,7 @@ class Scheduler {
     }
 
     if (lastPid != null) {
-      gantt.add(GanttEntry(processId: lastPid!, startTime: lastStart, endTime: currentTime, isIdle: lastPid == 'IDLE'));
+      gantt.add(GanttEntry(processId: lastPid, startTime: lastStart, endTime: currentTime, isIdle: lastPid == 'IDLE'));
     }
 
     // Merge consecutive same-process entries

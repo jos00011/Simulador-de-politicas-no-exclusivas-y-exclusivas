@@ -4,58 +4,92 @@ import 'package:flutter/material.dart';
 import '../models/simulation_result.dart';
 import '../utils/app_theme.dart';
 
-class MetricsSummaryWidget extends StatelessWidget {
+class MetricsSummaryWidget extends StatefulWidget {
   final SimulationResult result;
 
   const MetricsSummaryWidget({super.key, required this.result});
 
   @override
+  State<MetricsSummaryWidget> createState() => _MetricsSummaryWidgetState();
+}
+
+class _MetricsSummaryWidgetState extends State<MetricsSummaryWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _countAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
+    _countAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    Future.delayed(const Duration(milliseconds: 300), _ctrl.forward);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Averages row - shown FIRST and prominently
-        _buildAveragesRow(),
-        const SizedBox(height: 12),
-        // CPU + Memory stats
-        _buildStatsRow(),
-      ],
+    return AnimatedBuilder(
+      animation: _countAnim,
+      builder: (context, _) {
+        final t = _countAnim.value;
+        return Column(
+          children: [
+            _buildAveragesRow(t),
+            const SizedBox(height: 10),
+            _buildStatsRow(t),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildAveragesRow() {
+  Widget _buildAveragesRow(double t) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.bgCard,
-        border: Border.all(color: AppTheme.amber.withValues(alpha: 0.4)),
+        border: Border.all(color: AppTheme.amber.withValues(alpha: 0.35)),
         borderRadius: BorderRadius.circular(4),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.amber.withValues(alpha: 0.05),
+            blurRadius: 24,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Expanded(
-            child: _MetricTile(
+            child: _AnimatedMetricTile(
               label: 'Prom. Tiempo Retorno',
-              value: result.avgTurnaroundTime.toStringAsFixed(2),
+              value: (widget.result.avgTurnaroundTime * t).toStringAsFixed(2),
               unit: 'u.t.',
               color: AppTheme.amber,
               icon: Icons.timer_outlined,
             ),
           ),
-          Container(width: 1, height: 48, color: AppTheme.border),
+          Container(width: 1, height: 52, color: AppTheme.border),
           Expanded(
-            child: _MetricTile(
+            child: _AnimatedMetricTile(
               label: 'Prom. Tiempo Espera',
-              value: result.avgWaitingTime.toStringAsFixed(2),
+              value: (widget.result.avgWaitingTime * t).toStringAsFixed(2),
               unit: 'u.t.',
               color: AppTheme.amberLight,
               icon: Icons.hourglass_empty,
             ),
           ),
-          Container(width: 1, height: 48, color: AppTheme.border),
+          Container(width: 1, height: 52, color: AppTheme.border),
           Expanded(
-            child: _MetricTile(
-              label: 'Nº de Procesos',
-              value: '${result.processes.length}',
+            child: _AnimatedMetricTile(
+              label: 'Procesos',
+              value: '${(widget.result.processes.length * t).round()}',
               unit: 'proc.',
               color: AppTheme.sepia,
               icon: Icons.memory,
@@ -66,22 +100,25 @@ class MetricsSummaryWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsRow() {
+  Widget _buildStatsRow(double t) {
+    final cpuVal = widget.result.cpuUtilization * t;
+
     return Row(
       children: [
         Expanded(
           child: _StatCard(
             label: 'Uso CPU',
-            value: '${result.cpuUtilization.toStringAsFixed(1)}%',
-            color: result.cpuUtilization > 80 ? AppTheme.amber : AppTheme.sepia,
+            value: '${cpuVal.toStringAsFixed(1)}%',
+            color: cpuVal > 80 ? AppTheme.amber : AppTheme.sepia,
             icon: Icons.speed,
+            barFill: cpuVal / 100,
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: _StatCard(
             label: 'Tiempo Total',
-            value: '${result.totalTime} u.t.',
+            value: '${widget.result.totalTime} u.t.',
             color: AppTheme.sepia,
             icon: Icons.timeline,
           ),
@@ -90,7 +127,7 @@ class MetricsSummaryWidget extends StatelessWidget {
         Expanded(
           child: _StatCard(
             label: 'Memoria Total',
-            value: _formatMemory(result.totalMemory),
+            value: _formatMemory(widget.result.totalMemory),
             color: AppTheme.sepia,
             icon: Icons.storage,
           ),
@@ -99,7 +136,7 @@ class MetricsSummaryWidget extends StatelessWidget {
         Expanded(
           child: _StatCard(
             label: 'Política',
-            value: result.policy.displayName,
+            value: widget.result.policy.displayName,
             color: AppTheme.amberLight,
             icon: Icons.account_tree_outlined,
           ),
@@ -114,14 +151,14 @@ class MetricsSummaryWidget extends StatelessWidget {
   }
 }
 
-class _MetricTile extends StatelessWidget {
+class _AnimatedMetricTile extends StatelessWidget {
   final String label;
   final String value;
   final String unit;
   final Color color;
   final IconData icon;
 
-  const _MetricTile({
+  const _AnimatedMetricTile({
     required this.label,
     required this.value,
     required this.unit,
@@ -137,9 +174,9 @@ class _MetricTile extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 14),
-            const SizedBox(width: 6),
-            Text(label, style: const TextStyle(color: AppTheme.sepia, fontSize: 10, letterSpacing: 0.5)),
+            Icon(icon, color: color, size: 13),
+            const SizedBox(width: 5),
+            Text(label, style: const TextStyle(color: AppTheme.sepia, fontSize: 9, letterSpacing: 0.5)),
           ],
         ),
         const SizedBox(height: 6),
@@ -148,11 +185,11 @@ class _MetricTile extends StatelessWidget {
             children: [
               TextSpan(
                 text: value,
-                style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.w700),
+                style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.w700),
               ),
               TextSpan(
                 text: ' $unit',
-                style: const TextStyle(color: AppTheme.sepia, fontSize: 11),
+                style: const TextStyle(color: AppTheme.sepia, fontSize: 10),
               ),
             ],
           ),
@@ -162,35 +199,75 @@ class _MetricTile extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
+class _StatCard extends StatefulWidget {
   final String label;
   final String value;
   final Color color;
   final IconData icon;
+  final double? barFill;
 
-  const _StatCard({required this.label, required this.value, required this.color, required this.icon});
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.icon,
+    this.barFill,
+  });
+
+  @override
+  State<_StatCard> createState() => _StatCardState();
+}
+
+class _StatCardState extends State<_StatCard> {
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppTheme.bgCard,
-        border: Border.all(color: AppTheme.border),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(color: AppTheme.sepia, fontSize: 9, letterSpacing: 0.5)),
-              Text(value, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: _hovered ? widget.color.withValues(alpha: 0.06) : AppTheme.bgCard,
+          border: Border.all(color: _hovered ? widget.color.withValues(alpha: 0.5) : AppTheme.border),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(widget.icon, color: widget.color, size: 14),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.label,
+                          style: const TextStyle(color: AppTheme.sepia, fontSize: 9, letterSpacing: 0.5)),
+                      Text(widget.value,
+                          style: TextStyle(color: widget.color, fontSize: 13, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (widget.barFill != null) ...[
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(1),
+                child: LinearProgressIndicator(
+                  value: widget.barFill!.clamp(0.0, 1.0),
+                  backgroundColor: AppTheme.bgElevated,
+                  valueColor: AlwaysStoppedAnimation<Color>(widget.color),
+                  minHeight: 2,
+                ),
+              ),
             ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -4,9 +4,43 @@ import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import 'simulator_screen.dart';
 import 'about_screen.dart';
+import 'memory_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  late AnimationController _fadeCtrl;
+  late AnimationController _slideCtrl;
+  late Animation<double> _fadeAnim;
+  late Animation<Offset> _slideAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+    _slideCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+
+    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
+
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _fadeCtrl.forward();
+      _slideCtrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _fadeCtrl.dispose();
+    _slideCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,26 +48,43 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: AppTheme.bg,
       body: Stack(
         children: [
-          // Vintage grid background
-          CustomPaint(
-            painter: _GridPainter(),
-            child: Container(),
+          CustomPaint(painter: _GridPainter(), child: Container()),
+          // Ambient glow
+          Positioned(
+            top: -100,
+            left: -50,
+            child: Container(
+              width: 400,
+              height: 400,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppTheme.amber.withValues(alpha: 0.04),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
           ),
           Center(
-            child: SizedBox(
-              width: 520,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Logo / Title
-                  _buildTitle(),
-                  const SizedBox(height: 48),
-                  // Menu
-                  _buildMenu(context),
-                  const SizedBox(height: 48),
-                  // Footer
-                  _buildFooter(),
-                ],
+            child: FadeTransition(
+              opacity: _fadeAnim,
+              child: SlideTransition(
+                position: _slideAnim,
+                child: SizedBox(
+                  width: 540,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildTitle(),
+                      const SizedBox(height: 48),
+                      _buildMenu(context),
+                      const SizedBox(height: 48),
+                      _buildFooter(),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -45,80 +96,51 @@ class HomeScreen extends StatelessWidget {
   Widget _buildTitle() {
     return Column(
       children: [
-        // Decorative line
-        Row(
-          children: [
-            const Expanded(child: Divider(color: AppTheme.amberDim)),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.amber,
-                ),
-              ),
-            ),
-            const Expanded(child: Divider(color: AppTheme.amberDim)),
-          ],
-        ),
+        _decorLine(),
         const SizedBox(height: 24),
         const Text(
           'SIMULADOR DE',
-          style: TextStyle(
-            color: AppTheme.sepia,
-            fontSize: 11,
-            letterSpacing: 6,
-            fontWeight: FontWeight.w400,
-          ),
+          style: TextStyle(color: AppTheme.sepia, fontSize: 11, letterSpacing: 6, fontWeight: FontWeight.w400),
         ),
         const SizedBox(height: 4),
         const Text(
-          'PLANIFICACIÓN',
-          style: TextStyle(
-            color: AppTheme.cream,
-            fontSize: 36,
-            letterSpacing: 8,
-            fontWeight: FontWeight.w200,
-          ),
+          'SISTEMAS',
+          style: TextStyle(color: AppTheme.cream, fontSize: 36, letterSpacing: 8, fontWeight: FontWeight.w200),
         ),
         const Text(
-          'DE PROCESOS',
-          style: TextStyle(
-            color: AppTheme.amber,
-            fontSize: 28,
-            letterSpacing: 8,
-            fontWeight: FontWeight.w700,
-          ),
+          'OPERATIVOS',
+          style: TextStyle(color: AppTheme.amber, fontSize: 28, letterSpacing: 8, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
-        const Text(
-          'FCFS  ·  SPN  ·  SRT  ·  ROUND ROBIN',
-          style: TextStyle(
-            color: AppTheme.sepia,
-            fontSize: 10,
-            letterSpacing: 3,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppTheme.amberDim),
+            borderRadius: BorderRadius.circular(2),
+          ),
+          child: const Text(
+            'PLANIFICACIÓN  ·  MEMORIA DINÁMICA',
+            style: TextStyle(color: AppTheme.sepia, fontSize: 9, letterSpacing: 3),
           ),
         ),
         const SizedBox(height: 24),
-        Row(
-          children: [
-            const Expanded(child: Divider(color: AppTheme.amberDim)),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.amber,
-                ),
-              ),
-            ),
-            const Expanded(child: Divider(color: AppTheme.amberDim)),
-          ],
+        _decorLine(),
+      ],
+    );
+  }
+
+  Widget _decorLine() {
+    return Row(
+      children: [
+        const Expanded(child: Divider(color: AppTheme.amberDim)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Container(
+            width: 8, height: 8,
+            decoration: const BoxDecoration(shape: BoxShape.circle, color: AppTheme.amber),
+          ),
         ),
+        const Expanded(child: Divider(color: AppTheme.amberDim)),
       ],
     );
   }
@@ -127,32 +149,53 @@ class HomeScreen extends StatelessWidget {
     return Column(
       children: [
         _MenuButton(
-          label: 'INICIAR SIMULACIÓN',
-          subtitle: 'Cargar procesos y ejecutar algoritmos',
+          label: 'PLANIFICACIÓN DE CPU',
+          subtitle: 'FCFS  ·  SPN  ·  SRT  ·  Round Robin',
           icon: Icons.play_circle_outline,
+          accentColor: AppTheme.amber,
           primary: true,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SimulatorScreen()),
-          ),
+          delay: 0,
+          onTap: () => Navigator.push(context, _route(const SimulatorScreen())),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         _MenuButton(
-          label: 'ACERCA DEL SISTEMA',
-          subtitle: 'Documentación y algoritmos',
+          label: 'GESTIÓN DE MEMORIA',
+          subtitle: 'First Fit  ·  Best Fit  ·  Worst Fit  ·  Compactación',
+          icon: Icons.storage_outlined,
+          accentColor: AppTheme.rust,
+          delay: 80,
+          onTap: () => Navigator.push(context, _route(const MemoryScreen())),
+        ),
+        const SizedBox(height: 10),
+        _MenuButton(
+          label: 'DOCUMENTACIÓN',
+          subtitle: 'Algoritmos, métricas y referencias',
           icon: Icons.info_outline,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AboutScreen()),
-          ),
+          accentColor: AppTheme.sepia,
+          delay: 160,
+          onTap: () => Navigator.push(context, _route(const AboutScreen())),
         ),
       ],
     );
   }
 
+  PageRoute _route(Widget screen) =>
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => screen,
+        transitionsBuilder: (_, anim, __, child) => FadeTransition(
+          opacity: anim,
+          child: SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0.03, 0), end: Offset.zero)
+                .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+            child: child,
+          ),
+        ),
+        transitionDuration: const Duration(milliseconds: 280),
+      );
+
   Widget _buildFooter() {
     return const Text(
-      'v1.0.0  ·  Sistemas Operativos  ·  2026',
+      'v2.0.0  ·  Sistemas Operativos  ·  2026',
       style: TextStyle(color: AppTheme.amberDim, fontSize: 10, letterSpacing: 2),
     );
   }
@@ -162,14 +205,18 @@ class _MenuButton extends StatefulWidget {
   final String label;
   final String subtitle;
   final IconData icon;
+  final Color accentColor;
   final bool primary;
+  final int delay;
   final VoidCallback onTap;
 
   const _MenuButton({
     required this.label,
     required this.subtitle,
     required this.icon,
+    required this.accentColor,
     required this.onTap,
+    required this.delay,
     this.primary = false,
   });
 
@@ -177,57 +224,97 @@ class _MenuButton extends StatefulWidget {
   State<_MenuButton> createState() => _MenuButtonState();
 }
 
-class _MenuButtonState extends State<_MenuButton> {
+class _MenuButtonState extends State<_MenuButton> with SingleTickerProviderStateMixin {
   bool _hovering = false;
+  late AnimationController _scaleCtrl;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 120));
+    _scaleAnim = Tween<double>(begin: 1.0, end: 1.008)
+        .animate(CurvedAnimation(parent: _scaleCtrl, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _scaleCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          decoration: BoxDecoration(
-            color: widget.primary
-                ? (_hovering ? AppTheme.amber : AppTheme.amberDim.withValues(alpha: 0.3))
-                : (_hovering ? AppTheme.bgElevated : AppTheme.bgCard),
-            border: Border.all(
-              color: widget.primary ? AppTheme.amber : (_hovering ? AppTheme.amber.withValues(alpha: 0.5) : AppTheme.border),
-            ),
-            borderRadius: BorderRadius.circular(3),
-          ),
-          child: Row(
-            children: [
-              Icon(widget.icon, color: widget.primary ? (AppTheme.bg) : AppTheme.amber, size: 22),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.label,
-                      style: TextStyle(
-                        color: widget.primary ? AppTheme.bg : AppTheme.cream,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                    Text(
-                      widget.subtitle,
-                      style: TextStyle(
-                        color: widget.primary ? AppTheme.bg.withValues(alpha: 0.7) : AppTheme.sepia,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
+      onEnter: (_) {
+        setState(() => _hovering = true);
+        _scaleCtrl.forward();
+      },
+      onExit: (_) {
+        setState(() => _hovering = false);
+        _scaleCtrl.reverse();
+      },
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              color: widget.primary
+                  ? (_hovering ? widget.accentColor : widget.accentColor.withValues(alpha: 0.12))
+                  : (_hovering ? AppTheme.bgElevated : AppTheme.bgCard),
+              border: Border.all(
+                color: _hovering ? widget.accentColor : (widget.primary ? widget.accentColor.withValues(alpha: 0.5) : AppTheme.border),
+                width: _hovering ? 1.5 : 1,
               ),
-              Icon(Icons.arrow_forward_ios, size: 12, color: widget.primary ? AppTheme.bg : AppTheme.sepia),
-            ],
+              borderRadius: BorderRadius.circular(3),
+              boxShadow: _hovering
+                  ? [BoxShadow(color: widget.accentColor.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 4))]
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Icon(widget.icon,
+                    color: widget.primary
+                        ? (_hovering ? AppTheme.bg : widget.accentColor)
+                        : (_hovering ? widget.accentColor : AppTheme.sepia),
+                    size: 20),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.label,
+                        style: TextStyle(
+                          color: widget.primary
+                              ? (_hovering ? AppTheme.bg : AppTheme.cream)
+                              : (_hovering ? widget.accentColor : AppTheme.cream),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      Text(
+                        widget.subtitle,
+                        style: TextStyle(
+                          color: widget.primary
+                              ? (_hovering ? AppTheme.bg.withValues(alpha: 0.7) : AppTheme.sepia)
+                              : AppTheme.sepia,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, size: 11,
+                    color: widget.primary
+                        ? (_hovering ? AppTheme.bg : AppTheme.sepia)
+                        : AppTheme.sepia),
+              ],
+            ),
           ),
         ),
       ),
@@ -239,7 +326,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppTheme.border.withValues(alpha: 0.3)
+      ..color = AppTheme.border.withValues(alpha: 0.25)
       ..strokeWidth = 0.5;
     const spacing = 32.0;
     for (double x = 0; x < size.width; x += spacing) {

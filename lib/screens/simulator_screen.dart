@@ -100,9 +100,9 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
   Widget _buildToolbar(BuildContext context, AppState state) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppTheme.bgCard,
-        border: const Border(bottom: BorderSide(color: AppTheme.border)),
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         children: [

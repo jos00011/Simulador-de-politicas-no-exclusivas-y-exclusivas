@@ -21,29 +21,23 @@ class GanttChartWidget extends StatefulWidget {
 }
 
 class _GanttChartWidgetState extends State<GanttChartWidget> {
-  final ScrollController _hScroll = ScrollController(); // horizontal (tiempo)
-  final ScrollController _vScroll = ScrollController(); // vertical (procesos)
-  final ScrollController _rulerScroll = ScrollController(); // regla sincronizada
+  final ScrollController _hScroll = ScrollController();
+  final ScrollController _vScroll = ScrollController();
+  final ScrollController _rulerScroll = ScrollController();
 
-  static const double _labelWidth = 48.0;
-  static const double _rowHeight = 32.0;
+  static const double _labelWidth = 52.0;
+  static const double _rowHeight = 34.0;
   static const double _rulerHeight = 28.0;
 
-  @override
-  void dispose() {
-    _hScroll.dispose();
-    _vScroll.dispose();
-    _rulerScroll.dispose();
-    super.dispose();
-  }
+  // Build a stable pid→color map using sequential indices
+  late Map<String, Color> _colorMap;
 
   @override
   void initState() {
     super.initState();
-    // Sincroniza scroll horizontal del cuerpo con el ruler
+    _buildColorMap();
     _hScroll.addListener(() {
-      if (_rulerScroll.hasClients &&
-          _rulerScroll.offset != _hScroll.offset) {
+      if (_rulerScroll.hasClients && _rulerScroll.offset != _hScroll.offset) {
         _rulerScroll.jumpTo(_hScroll.offset);
       }
     });
@@ -55,6 +49,34 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
   }
 
   @override
+  void didUpdateWidget(GanttChartWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.entries != widget.entries) {
+      _buildColorMap();
+    }
+  }
+
+  void _buildColorMap() {
+    _colorMap = {};
+    int idx = 0;
+    for (final e in widget.entries) {
+      if (!e.isIdle && !_colorMap.containsKey(e.processId)) {
+        _colorMap[e.processId] = AppTheme.processColorByIndex(idx++);
+      }
+    }
+  }
+
+  Color _colorFor(String pid) => _colorMap[pid] ?? AppTheme.sepia;
+
+  @override
+  void dispose() {
+    _hScroll.dispose();
+    _vScroll.dispose();
+    _rulerScroll.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final visible = widget.entries.take(widget.visibleCount).toList();
     if (visible.isEmpty) return const SizedBox.shrink();
@@ -62,7 +84,7 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
     final totalTime = widget.entries.isNotEmpty ? widget.entries.last.endTime : 0;
     final chartWidth = totalTime * widget.timeScale;
 
-    // IDs únicos de procesos (sin IDLE), en orden de aparición
+    // Unique process IDs in order of first appearance
     final processIds = <String>[];
     for (final e in widget.entries) {
       if (!e.isIdle && !processIds.contains(e.processId)) {
@@ -70,7 +92,6 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
       }
     }
 
-    // Construye mapa pid -> lista de GanttEntry visibles
     final Map<String, List<GanttEntry>> byProcess = {};
     for (final pid in processIds) {
       byProcess[pid] = visible.where((e) => e.processId == pid).toList();
@@ -78,16 +99,12 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
 
     return Column(
       children: [
-        // Ruler (regla de tiempo) — sincronizada con scroll horizontal del cuerpo
         _buildRuler(totalTime, chartWidth),
-        // Cuerpo: scroll vertical de filas + scroll horizontal de bloques
         Expanded(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Columna de etiquetas fija (no hace scroll horizontal)
               _buildLabels(processIds),
-              // Área de bloques con doble scroll
               Expanded(
                 child: SingleChildScrollView(
                   controller: _vScroll,
@@ -107,16 +124,12 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
   }
 
   Widget _buildRuler(int totalTime, double chartWidth) {
-    // Calcula cada cuántos ticks poner etiqueta para no saturar
     final step = _labelStep(totalTime);
-
     return SizedBox(
       height: _rulerHeight,
       child: Row(
         children: [
-          // Espacio igual al ancho de etiquetas
           SizedBox(width: _labelWidth),
-          // Ruler scrolleable sincronizado
           Expanded(
             child: SingleChildScrollView(
               controller: _rulerScroll,
@@ -148,7 +161,7 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
         physics: const NeverScrollableScrollPhysics(),
         child: Column(
           children: processIds.map((pid) {
-            final color = AppTheme.processColor(pid);
+            final color = _colorFor(pid);
             return Container(
               height: _rowHeight,
               alignment: Alignment.centerLeft,
@@ -204,13 +217,12 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
     int totalTime,
     double chartWidth,
   ) {
-    final color = AppTheme.processColor(pid);
+    final color = _colorFor(pid);
     return SizedBox(
       height: _rowHeight,
       width: chartWidth,
       child: Stack(
         children: [
-          // Fondo de fila
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -221,7 +233,6 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
               ),
             ),
           ),
-          // Líneas verticales de grid cada ciertos ticks
           ...List.generate(totalTime + 1, (t) {
             if (t % _labelStep(totalTime) != 0) return const SizedBox.shrink();
             return Positioned(
@@ -232,7 +243,6 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
               child: Container(color: AppTheme.border.withValues(alpha: 0.4)),
             );
           }),
-          // Bloques del proceso
           ...rowEntries.map((e) {
             final left = e.startTime * widget.timeScale;
             final width = (e.duration * widget.timeScale) - 1;
@@ -283,7 +293,7 @@ class _RulerPainter extends CustomPainter {
   final double timeScale;
   final int step;
 
-  _RulerPainter({
+  const _RulerPainter({
     required this.totalTime,
     required this.timeScale,
     required this.step,
@@ -295,18 +305,13 @@ class _RulerPainter extends CustomPainter {
       ..color = AppTheme.border
       ..strokeWidth = 0.8;
 
-    final textStyle = const TextStyle(
-      color: AppTheme.sepia,
-      fontSize: 9,
-    );
+    const textStyle = TextStyle(color: AppTheme.sepia, fontSize: 9);
 
-    // Fondo del ruler
     canvas.drawRect(
       Rect.fromLTWH(0, 0, size.width, size.height),
       Paint()..color = AppTheme.bgCard,
     );
 
-    // Línea base
     canvas.drawLine(
       Offset(0, size.height - 1),
       Offset(size.width, size.height - 1),
@@ -318,20 +323,17 @@ class _RulerPainter extends CustomPainter {
       final isMajor = t % step == 0;
 
       if (isMajor) {
-        // Tick mayor
         canvas.drawLine(
           Offset(x, size.height - 10),
           Offset(x, size.height - 1),
           linePaint..color = AppTheme.amber,
         );
-        // Etiqueta
         final tp = TextPainter(
           text: TextSpan(text: '$t', style: textStyle),
           textDirection: TextDirection.ltr,
         )..layout();
         tp.paint(canvas, Offset(x - tp.width / 2, 2));
       } else {
-        // Tick menor
         canvas.drawLine(
           Offset(x, size.height - 5),
           Offset(x, size.height - 1),
