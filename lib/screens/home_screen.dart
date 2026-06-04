@@ -5,6 +5,7 @@ import '../utils/app_theme.dart';
 import 'simulator_screen.dart';
 import 'about_screen.dart';
 import 'memory_screen.dart';
+// import 'pagination_screen.dart';  // ← ELIMINADA - ya no existe
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -119,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(2),
           ),
           child: const Text(
-            'PLANIFICACIÓN  ·  MEMORIA DINÁMICA',
+            'PLANIFICACIÓN  ·  MEMORIA  ·  PAGINACIÓN',
             style: TextStyle(color: AppTheme.sepia, fontSize: 9, letterSpacing: 3),
           ),
         ),
@@ -167,6 +168,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           onTap: () => Navigator.push(context, _route(const MemoryScreen())),
         ),
         const SizedBox(height: 10),
+        // ═══════════════════════════════════════════════════════════════════
+        // BOTÓN DE PAGINACIÓN - COMENTADO HASTA QUE EXISTA
+        // ═══════════════════════════════════════════════════════════════════
+        // _MenuButton(
+        //   label: 'PAGINACIÓN Y TLB',
+        //   subtitle: 'TLB  ·  Tabla de Páginas  ·  Fallos de Página',
+        //   icon: Icons.memory,
+        //   accentColor: const Color(0xFF9C27B0),
+        //   delay: 120,
+        //   onTap: () => Navigator.push(context, _route(const PaginationScreen())),
+        // ),
+        // const SizedBox(height: 10),
         _MenuButton(
           label: 'DOCUMENTACIÓN',
           subtitle: 'Algoritmos, métricas y referencias',

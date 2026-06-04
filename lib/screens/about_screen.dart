@@ -38,10 +38,11 @@ class AboutScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _section('OBJETIVO', '''
-Este simulador fue desarrollado como herramienta educativa para visualizar y comparar cuatro políticas de planificación de procesos de CPU (FCFS, SPN, SRT y Round Robin) y tres algoritmos de asignación de memoria dinámica (First Fit, Best Fit y Worst Fit).
+Este simulador fue desarrollado como herramienta educativa para visualizar y comparar cuatro políticas de planificación de procesos de CPU (FCFS, SPN, SRT y Round Robin), tres algoritmos de asignación de memoria dinámica (First Fit, Best Fit y Worst Fit) y los conceptos fundamentales de PAGINACIÓN con TLB.
 
-Permite cargar procesos desde archivos externos (CSV o TXT), ejecutar simulaciones con diagramas de Gantt animados, visualizar mapas de memoria en tiempo real y obtener métricas de rendimiento detalladas.
+Permite cargar procesos desde archivos externos (CSV o TXT), ejecutar simulaciones con diagramas de Gantt animados, visualizar mapas de memoria en tiempo real, traducir direcciones lógicas a físicas y obtener métricas de rendimiento detalladas.
 '''),
+
                 _section('ALGORITMOS DE PLANIFICACIÓN DE CPU', null),
                 _algo('FCFS — First Come First Served', 'No expulsiva', '''
 Los procesos son atendidos en el orden estricto de llegada.
@@ -74,6 +75,66 @@ Asigna el hueco más grande disponible, dejando el residuo más grande posible.
 La idea es que el residuo sobrante sea lo suficientemente útil para otro proceso.
 Puede causar que procesos grandes no encuentren hueco suficiente.''', AppTheme.rust),
 
+                // ═══════════════════════════════════════════════════════════════
+                // NUEVA SECCIÓN: PAGINACIÓN
+                // ═══════════════════════════════════════════════════════════════
+                _section('PAGINACIÓN Y MEMORIA VIRTUAL', null),
+                _algo('¿Qué es la Paginación?', 'Esquema de memoria no contigua', '''
+La paginación permite que el espacio de direcciones físicas de un proceso sea NO CONTIGUO. Esto elimina la fragmentación externa y la necesidad de compactación.
+
+• La memoria física se divide en bloques de tamaño fijo llamados MARCOS (frames)
+• La memoria lógica del proceso se divide en bloques del mismo tamaño llamados PÁGINAS (pages)
+• La TABLA DE PÁGINAS mapea cada página lógica a un marco físico
+• Bit de validez: indica si la página está cargada en memoria física''', AppTheme.rust),
+
+                _algo('TLB — Translation Lookaside Buffer', 'Caché de traducciones', '''
+La TLB es una memoria caché ultrarrápida dentro de la MMU que almacena traducciones recientes de página → marco.
+
+FÓRMULA DEL TIEMPO EFECTIVO DE ACCESO (EAT):
+• Con TLB hit:  EAT = TLB + MEM
+• Con TLB miss: EAT = TLB + 2·MEM
+
+EAT promedio = h·(TLB+MEM) + (1-h)·(TLB+2·MEM)
+
+Donde:
+• h = tasa de aciertos TLB (0-1)
+• TLB = tiempo de acceso a TLB (nanosegundos)
+• MEM = tiempo de acceso a memoria principal (nanosegundos)''', AppTheme.rust),
+
+                _algo('Fallo de Página', 'Paginación por demanda', '''
+Cuando una página no está en memoria física (bit de validez = 0), ocurre un FALLO DE PÁGINA. El sistema operativo debe traer la página desde el disco.
+
+FÓRMULA COMPLETA CON FALLOS:
+EAT = (1-p)·[h·(TLB+MEM) + (1-h)·(TLB+2·MEM)] + p·T_fallo
+
+Donde:
+• p = tasa de fallos de página
+• T_fallo = tiempo de resolver un fallo (acceso a disco en milisegundos)
+
+Ejemplo típico: TLB=10ns, MEM=80ns, T_fallo=20ms
+• Con h=95% y sin fallos → EAT = 79.5 ns
+• Con 1 fallo por millón → EAT = 200.1 ns''', AppTheme.rust),
+
+                _algo('Algoritmos de Reemplazo de Páginas', 'FIFO · LRU · CLOCK', '''
+Cuando la memoria está llena y ocurre un fallo de página, se debe elegir qué página reemplazar:
+
+• FIFO (First In First Out): reemplaza la página más antigua. Simple pero puede sufrir "anomalía de Belady".
+
+• LRU (Least Recently Used): reemplaza la página no usada por más tiempo. Óptimo en teoría pero costoso de implementar.
+
+• CLOCK (Algoritmo del Reloj): aproximación eficiente a LRU usando un bit de referencia. Cada página tiene un bit que se activa al ser referenciada. El puntero del reloj avanza hasta encontrar una página con bit = 0.''', AppTheme.rust),
+
+                _algo('Traducción de Direcciones', 'Lógica → Física', '''
+La dirección lógica se descompone en dos partes:
+• Número de página (P) = dirección ÷ tamaño_página
+• Desplazamiento (d) = dirección % tamaño_página
+
+Dirección física = (marco × tamaño_página) + desplazamiento
+
+Ejemplo con tamaño de página = 2KB (2048 bytes):
+Dirección lógica 3,500 → P = 1, d = 1,452
+Si página 1 está en marco 4 → física = 4×2048 + 1452 = 9,644 bytes''', AppTheme.rust),
+
                 _section('MÉTRICAS DE PLANIFICACIÓN', '''
 • Tiempo de Retorno (TR): TR = T.Fin − T.Llegada
 • Tiempo de Espera (TE): TE = TR − T.Servicio
@@ -84,7 +145,9 @@ Puede causar que procesos grandes no encuentren hueco suficiente.''', AppTheme.r
 • Utilización: % de la memoria total asignada a procesos activos.
 • Fragmentación Externa: Memoria libre total − mayor hueco libre.
   Representa la memoria libre que no puede usarse por estar dispersa.
-• Compactación: Reorganiza los bloques para unir todos los huecos libres en uno contiguo.'''),
+• Compactación: Reorganiza los bloques para unir todos los huecos libres en uno contiguo.
+• Tasa de aciertos TLB (TLB Hit Rate): hits / accesos totales.
+• Tasa de fallos de página: page faults / accesos totales.'''),
 
                 _section('FORMATO DE ARCHIVO', '''
 CSV (comma-separated values):
@@ -100,10 +163,22 @@ TXT (separado por espacios/tabs):
 Campos requeridos: ID, Tiempo de Llegada, Tiempo de Servicio
 Campo opcional: Memoria en KB (por defecto 64 KB)'''),
 
+                _section('PROBLEMAS RESUELTOS (TALLER)', '''
+Problema 3: ¿Tasa de aciertos TLB mínima para EAT < 100 ns?
+• Datos: TLB=10ns, MEM=80ns
+• Fórmula: EAT = TLB + MEM·(2 - h) < 100
+• Resultado: h > 87.5%
+
+Problema 4: Con h=95%, TLB=10ns, MEM=80ns, T_fallo=20ms
+• a) EAT sin fallos = 79.5 ns
+• b) EAT con p=1/1,000,000 = 200.1 ns
+• c) p máxima para EAT < 100 ns ≈ 1.025×10⁻⁶ (1 fallo cada 975,000 accesos)'''),
+
                 _section('REFERENCIAS', '''
-• Stallings, W. (2018). Operating Systems: Internals and Design Principles. 9th Ed. Pearson.
 • Silberschatz, A., Galvin, P. B., Gagne, G. (2018). Operating System Concepts. 10th Ed. Wiley.
-• Tanenbaum, A. S. (2015). Modern Operating Systems. 4th Ed. Pearson.'''),
+• Stallings, W. (2018). Operating Systems: Internals and Design Principles. 9th Ed. Pearson.
+• Tanenbaum, A. S. (2015). Modern Operating Systems. 4th Ed. Pearson.
+• Carretero, J., García, F., et al. (2001). Sistemas Operativos: una visión aplicada. 1ra Ed., McGraw Hill.'''),
 
                 const SizedBox(height: 32),
                 Container(

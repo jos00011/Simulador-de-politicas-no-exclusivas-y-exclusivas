@@ -32,3 +32,4 @@ class SimuladorApp extends StatelessWidget {
     );
   }
 }
+

@@ -272,3 +272,4 @@ class _StatCardState extends State<_StatCard> {
     );
   }
 }
+

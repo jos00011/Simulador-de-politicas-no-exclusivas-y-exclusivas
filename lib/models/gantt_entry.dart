@@ -15,3 +15,4 @@ class GanttEntry {
 
   int get duration => endTime - startTime;
 }
+

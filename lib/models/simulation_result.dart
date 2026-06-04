@@ -69,3 +69,4 @@ class SimulationResult {
     return busyTime / totalTime * 100;
   }
 }
+
