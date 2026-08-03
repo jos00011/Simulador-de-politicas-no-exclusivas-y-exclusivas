@@ -15,7 +15,7 @@ class Process {
     required this.id,
     required this.arrivalTime,
     required this.burstTime,
-    this.memorySize = 0,
+    this.memorySize = 64,
   })  : remainingTime = burstTime,
         startTime = -1,
         finishTime = -1,
@@ -64,4 +64,3 @@ class Process {
         'waitingTime': te,
       };
 }
-

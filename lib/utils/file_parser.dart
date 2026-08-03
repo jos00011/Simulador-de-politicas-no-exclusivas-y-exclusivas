@@ -18,7 +18,10 @@ class FileParser {
     // Skip header if first line contains non-numeric first column
     if (lines.isNotEmpty) {
       final firstParts = lines[0].split(',');
-      if (firstParts.isNotEmpty && int.tryParse(firstParts[0].trim()) == null && firstParts[0].trim().toLowerCase() != 'p1' && !firstParts[0].trim().startsWith(RegExp(r'[Pp]\d'))) {
+      if (firstParts.isNotEmpty && 
+          int.tryParse(firstParts[0].trim()) == null && 
+          firstParts[0].trim().toLowerCase() != 'p1' && 
+          !firstParts[0].trim().startsWith(RegExp(r'[Pp]\d'))) {
         start = 1;
       }
     }
@@ -94,4 +97,3 @@ E 4 3 48
     return null;
   }
 }
-

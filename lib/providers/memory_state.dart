@@ -1,11 +1,11 @@
-// lib/utils/memory_state.dart
+// lib/providers/memory_state.dart
 
 import 'package:flutter/foundation.dart';
 import '../models/memory_block.dart';
 import '../models/memory_event.dart';
 import '../models/memory_result.dart';
 import '../models/process.dart';
-import 'memory_allocator.dart';
+import '../algorithms/memory_allocator.dart';
 
 /// A workload entry: process + target memory location
 class WorkloadEntry {
@@ -29,12 +29,10 @@ class MemoryState extends ChangeNotifier {
   int _stepIndex = 0;
   bool _isAnimating = false;
   List<MemoryBlock> _currentBlocks = [];
+  String? _errorMessage;
 
   // ── Workload ─────────────────────────────────────────────────
-  /// Custom workload entries typed by the user; null = use app processes
   List<WorkloadEntry>? _customWorkload;
-
-  /// If true, show the RAM visualization overlay
   bool _showRam = false;
 
   // ── Getters ──────────────────────────────────────────────────
@@ -46,6 +44,7 @@ class MemoryState extends ChangeNotifier {
   List<MemoryBlock> get currentBlocks => _currentBlocks;
   List<WorkloadEntry>? get customWorkload => _customWorkload;
   bool get showRam => _showRam;
+  String? get errorMessage => _errorMessage;
 
   MemoryEvent? get currentEvent =>
       _result != null && _stepIndex > 0 && _stepIndex <= _result!.events.length
@@ -95,7 +94,6 @@ class MemoryState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Build a Process list from workload entries (for the allocator)
   List<Process> _workloadToProcesses(List<WorkloadEntry> entries) {
     return entries
         .map((e) => Process(
@@ -109,6 +107,13 @@ class MemoryState extends ChangeNotifier {
 
   // ── Simulation ───────────────────────────────────────────────
   void runSimulation(List<Process> appProcesses) {
+    if (appProcesses.isEmpty) {
+      _errorMessage = 'No hay procesos para simular.';
+      notifyListeners();
+      return;
+    }
+
+    _errorMessage = null;
     final processes = _customWorkload != null && _customWorkload!.isNotEmpty
         ? _workloadToProcesses(_customWorkload!)
         : appProcesses;
@@ -123,7 +128,7 @@ class MemoryState extends ChangeNotifier {
       MemoryBlock(
         id: 'free_init',
         startAddress: 0,
-        size: _result!.totalMemory, // may differ if buddy snapped up
+        size: _result!.totalMemory,
         status: BlockStatus.free,
       )
     ];
@@ -165,7 +170,6 @@ class MemoryState extends ChangeNotifier {
   void compactMemory() {
     if (_result == null) return;
     if (isBuddySystem) {
-      // For buddy: merge free blocks instead
       _currentBlocks =
           MemoryAllocator.buddyDeallocate(_currentBlocks, '', _result!.totalMemory);
     } else {
@@ -179,6 +183,7 @@ class MemoryState extends ChangeNotifier {
     _result = null;
     _stepIndex = 0;
     _currentBlocks = [];
+    _errorMessage = null;
     notifyListeners();
   }
 }

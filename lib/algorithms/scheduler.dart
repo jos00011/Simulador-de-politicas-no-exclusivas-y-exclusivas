@@ -1,4 +1,4 @@
-// lib/utils/scheduler.dart
+// lib/algorithms/scheduler.dart
 
 import '../models/process.dart';
 import '../models/gantt_entry.dart';
@@ -49,13 +49,11 @@ class Scheduler {
     final remaining = List<Process>.from(processes);
 
     while (remaining.isNotEmpty) {
-      // Get all processes that have arrived
       final available = remaining
           .where((p) => p.arrivalTime <= currentTime)
           .toList();
 
       if (available.isEmpty) {
-        // CPU idle
         final nextArrival = remaining.map((p) => p.arrivalTime).reduce((a, b) => a < b ? a : b);
         gantt.add(GanttEntry(
           processId: 'IDLE',
@@ -67,7 +65,6 @@ class Scheduler {
         continue;
       }
 
-      // Pick shortest burst time
       available.sort((a, b) {
         final cmp = a.burstTime.compareTo(b.burstTime);
         return cmp != 0 ? cmp : a.arrivalTime.compareTo(b.arrivalTime);
@@ -157,7 +154,6 @@ class Scheduler {
       gantt.add(GanttEntry(processId: lastPid, startTime: lastStart, endTime: currentTime, isIdle: lastPid == 'IDLE'));
     }
 
-    // Merge consecutive same-process entries
     final merged = _mergeGantt(gantt);
 
     return SimulationResult(
@@ -175,10 +171,9 @@ class Scheduler {
     final gantt = <GanttEntry>[];
     final queue = <Process>[];
     int currentTime = 0;
-    int index = 0; // next process to add from sorted list
+    int index = 0;
     final done = <Process>[];
 
-    // Add processes that arrive at time 0
     while (index < processes.length && processes[index].arrivalTime <= currentTime) {
       queue.add(processes[index++]);
     }
@@ -202,7 +197,6 @@ class Scheduler {
       p.remainingTime -= execTime;
       currentTime += execTime;
 
-      // Add newly arrived processes
       while (index < processes.length && processes[index].arrivalTime <= currentTime) {
         queue.add(processes[index++]);
       }
@@ -245,4 +239,3 @@ class Scheduler {
     return merged;
   }
 }
-

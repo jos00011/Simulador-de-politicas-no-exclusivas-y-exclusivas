@@ -1,9 +1,9 @@
-// lib/utils/app_state.dart
+// lib/providers/app_state.dart
 
 import 'package:flutter/foundation.dart';
 import '../models/process.dart';
 import '../models/simulation_result.dart';
-import 'scheduler.dart';
+import '../algorithms/scheduler.dart';
 
 class AppState extends ChangeNotifier {
   List<Process> _processes = [];
@@ -11,11 +11,11 @@ class AppState extends ChangeNotifier {
   SchedulingPolicy _policy = SchedulingPolicy.fcfs;
   int _quantum = 2;
   bool _isRunning = false;
-  int _ganttStep = 0; // for step-by-step animation
+  int _ganttStep = 0;
   String? _errorMessage;
   String _searchQuery = '';
 
-  // Getters
+  // ─── GETTERS ──────────────────────────────────────────────────
   List<Process> get processes => _processes;
   SimulationResult? get result => _result;
   SchedulingPolicy get policy => _policy;
@@ -38,6 +38,7 @@ class AppState extends ChangeNotifier {
     return _result!.processes.where((p) => p.id.toLowerCase().contains(q)).toList();
   }
 
+  // ─── ACCIONES DE PROCESOS ────────────────────────────────────
   void setProcesses(List<Process> processes) {
     _processes = processes;
     _result = null;
@@ -65,15 +66,18 @@ class AppState extends ChangeNotifier {
     _processes = [];
     _result = null;
     _ganttStep = 0;
+    _errorMessage = null;
     notifyListeners();
   }
 
+  // ─── CONFIGURACIÓN ───────────────────────────────────────────
   void setPolicy(SchedulingPolicy policy) {
     _policy = policy;
     notifyListeners();
   }
 
   void setQuantum(int q) {
+    if (q <= 0) return;
     _quantum = q;
     notifyListeners();
   }
@@ -88,18 +92,20 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ─── SIMULACIÓN ──────────────────────────────────────────────
   Future<void> runSimulation() async {
     if (_processes.isEmpty) {
       _errorMessage = 'No hay procesos para simular.';
       notifyListeners();
       return;
     }
+
     _isRunning = true;
     _ganttStep = 0;
     _errorMessage = null;
     notifyListeners();
 
-    await Future.delayed(const Duration(milliseconds: 10));
+    await Future.delayed(const Duration(milliseconds: 100));
 
     try {
       SimulationResult res;
@@ -125,7 +131,6 @@ class AppState extends ChangeNotifier {
     _isRunning = false;
     notifyListeners();
 
-    // Animate Gantt step by step
     if (_result != null) {
       _animateGantt();
     }
@@ -147,5 +152,20 @@ class AppState extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
   }
-}
 
+  // ─── HELPERS ──────────────────────────────────────────────────
+  int get totalMemory {
+    return _processes.fold(0, (sum, p) => sum + p.memorySize);
+  }
+
+  int get processCount => _processes.length;
+
+  bool get hasProcesses => _processes.isNotEmpty;
+
+  bool get hasResults => _result != null;
+
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+}

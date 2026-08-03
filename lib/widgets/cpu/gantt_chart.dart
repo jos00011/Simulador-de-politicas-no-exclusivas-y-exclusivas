@@ -1,8 +1,9 @@
-// lib/widgets/gantt_chart.dart
+// lib/widgets/cpu/gantt_chart.dart
+// VERSIÓN CON SCROLL HORIZONTAL Y VERTICAL FUNCIONAL
 
 import 'package:flutter/material.dart';
-import '../models/gantt_entry.dart';
-import '../utils/app_theme.dart';
+import '../../models/gantt_entry.dart';
+import '../../core/app_theme.dart';
 
 class GanttChartWidget extends StatefulWidget {
   final List<GanttEntry> entries;
@@ -23,29 +24,18 @@ class GanttChartWidget extends StatefulWidget {
 class _GanttChartWidgetState extends State<GanttChartWidget> {
   final ScrollController _hScroll = ScrollController();
   final ScrollController _vScroll = ScrollController();
-  final ScrollController _rulerScroll = ScrollController();
 
   static const double _labelWidth = 52.0;
-  static const double _rowHeight = 34.0;
+  static const double _rowHeight = 26.0;
   static const double _rulerHeight = 28.0;
 
-  // Build a stable pid→color map using sequential indices
   late Map<String, Color> _colorMap;
+  late List<String> _processIds;
 
   @override
   void initState() {
     super.initState();
     _buildColorMap();
-    _hScroll.addListener(() {
-      if (_rulerScroll.hasClients && _rulerScroll.offset != _hScroll.offset) {
-        _rulerScroll.jumpTo(_hScroll.offset);
-      }
-    });
-    _rulerScroll.addListener(() {
-      if (_hScroll.hasClients && _hScroll.offset != _rulerScroll.offset) {
-        _hScroll.jumpTo(_rulerScroll.offset);
-      }
-    });
   }
 
   @override
@@ -58,61 +48,85 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
 
   void _buildColorMap() {
     _colorMap = {};
+    _processIds = [];
     int idx = 0;
     for (final e in widget.entries) {
       if (!e.isIdle && !_colorMap.containsKey(e.processId)) {
         _colorMap[e.processId] = AppTheme.processColorByIndex(idx++);
+        _processIds.add(e.processId);
       }
     }
+    final order = <String, int>{};
+    for (int i = 0; i < widget.entries.length; i++) {
+      final e = widget.entries[i];
+      if (!e.isIdle && !order.containsKey(e.processId)) {
+        order[e.processId] = i;
+      }
+    }
+    _processIds.sort((a, b) => (order[a] ?? 0).compareTo(order[b] ?? 0));
   }
 
-  Color _colorFor(String pid) => _colorMap[pid] ?? AppTheme.sepia;
+  Color _colorFor(String pid) => _colorMap[pid] ?? AppTheme.textDim;
 
   @override
   void dispose() {
     _hScroll.dispose();
     _vScroll.dispose();
-    _rulerScroll.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final visible = widget.entries.take(widget.visibleCount).toList();
-    if (visible.isEmpty) return const SizedBox.shrink();
+    if (visible.isEmpty) {
+      return const Center(
+        child: Text(
+          'Cargando diagrama...',
+          style: TextStyle(color: AppTheme.textSecondary),
+        ),
+      );
+    }
 
     final totalTime = widget.entries.isNotEmpty ? widget.entries.last.endTime : 0;
     final chartWidth = totalTime * widget.timeScale;
 
-    // Unique process IDs in order of first appearance
-    final processIds = <String>[];
-    for (final e in widget.entries) {
-      if (!e.isIdle && !processIds.contains(e.processId)) {
-        processIds.add(e.processId);
-      }
-    }
+    final rowHeight = _processIds.length > 20 ? 22.0 : _rowHeight;
 
     final Map<String, List<GanttEntry>> byProcess = {};
-    for (final pid in processIds) {
+    for (final pid in _processIds) {
       byProcess[pid] = visible.where((e) => e.processId == pid).toList();
     }
 
     return Column(
       children: [
+        // RULER (con scroll horizontal sincronizado)
         _buildRuler(totalTime, chartWidth),
+        // CUERPO PRINCIPAL (scroll horizontal + vertical)
         Expanded(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildLabels(processIds),
+              // Etiquetas de procesos (scroll vertical sincronizado)
+              _buildLabels(rowHeight),
+              // Scroll horizontal + vertical
               Expanded(
-                child: SingleChildScrollView(
-                  controller: _vScroll,
-                  scrollDirection: Axis.vertical,
-                  child: SingleChildScrollView(
-                    controller: _hScroll,
-                    scrollDirection: Axis.horizontal,
-                    child: _buildBody(processIds, byProcess, totalTime, chartWidth),
+                child: Scrollbar(
+                  controller: _hScroll,
+                  thumbVisibility: true,
+                  child: Scrollbar(
+                    controller: _vScroll,
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      controller: _hScroll,
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: SingleChildScrollView(
+                        controller: _vScroll,
+                        scrollDirection: Axis.vertical,
+                        physics: const BouncingScrollPhysics(),
+                        child: _buildBody(byProcess, totalTime, chartWidth, rowHeight),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -125,20 +139,37 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
 
   Widget _buildRuler(int totalTime, double chartWidth) {
     final step = _labelStep(totalTime);
-    return SizedBox(
+    return Container(
       height: _rulerHeight,
+      decoration: BoxDecoration(
+        color: AppTheme.bgCard,
+        border: Border(
+          bottom: BorderSide(color: AppTheme.borderDark, width: 0.5),
+        ),
+      ),
       child: Row(
         children: [
-          SizedBox(width: _labelWidth),
+          // Espacio para las etiquetas
+          SizedBox(
+            width: _labelWidth,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  right: BorderSide(color: AppTheme.borderDark, width: 0.5),
+                ),
+              ),
+            ),
+          ),
+          // Ruler con scroll horizontal
           Expanded(
             child: SingleChildScrollView(
-              controller: _rulerScroll,
+              controller: _hScroll,
               scrollDirection: Axis.horizontal,
               physics: const NeverScrollableScrollPhysics(),
               child: SizedBox(
                 width: chartWidth,
+                height: _rulerHeight,
                 child: CustomPaint(
-                  size: Size(chartWidth, _rulerHeight),
                   painter: _RulerPainter(
                     totalTime: totalTime,
                     timeScale: widget.timeScale,
@@ -153,35 +184,43 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
     );
   }
 
-  Widget _buildLabels(List<String> processIds) {
+  Widget _buildLabels(double rowHeight) {
     return SizedBox(
       width: _labelWidth,
       child: SingleChildScrollView(
         controller: _vScroll,
+        scrollDirection: Axis.vertical,
         physics: const NeverScrollableScrollPhysics(),
         child: Column(
-          children: processIds.map((pid) {
+          children: _processIds.map((pid) {
             final color = _colorFor(pid);
+            final isEven = _processIds.indexOf(pid).isEven;
             return Container(
-              height: _rowHeight,
+              height: rowHeight,
               alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.only(left: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 3),
               decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppTheme.border, width: 0.5)),
+                color: isEven
+                    ? AppTheme.bgDeep.withValues(alpha: 0.3)
+                    : Colors.transparent,
+                border: Border(
+                  right: BorderSide(color: AppTheme.borderDark, width: 0.5),
+                  bottom: BorderSide(color: AppTheme.borderDark, width: 0.3),
+                ),
               ),
               child: Row(
                 children: [
-                  Container(width: 3, height: 18, color: color),
-                  const SizedBox(width: 4),
-                  Flexible(
+                  Container(width: 3, height: 14, color: color),
+                  const SizedBox(width: 3),
+                  Expanded(
                     child: Text(
                       pid,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: color,
-                        fontSize: 10,
+                        fontSize: rowHeight > 24 ? 9 : 7,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
+                        letterSpacing: 0.3,
                       ),
                     ),
                   ),
@@ -195,17 +234,22 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
   }
 
   Widget _buildBody(
-    List<String> processIds,
     Map<String, List<GanttEntry>> byProcess,
     int totalTime,
     double chartWidth,
+    double rowHeight,
   ) {
+    final fontSize = _processIds.length > 30 ? 6.0 : 8.0;
+
     return SizedBox(
       width: chartWidth,
       child: Column(
-        children: processIds.map((pid) {
+        children: _processIds.asMap().entries.map((entry) {
+          final pid = entry.value;
+          final index = entry.key;
           final rowEntries = byProcess[pid] ?? [];
-          return _buildRow(pid, rowEntries, totalTime, chartWidth);
+          final isEven = index.isEven;
+          return _buildRow(pid, rowEntries, totalTime, chartWidth, rowHeight, fontSize, isEven);
         }).toList(),
       ),
     );
@@ -216,23 +260,25 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
     List<GanttEntry> rowEntries,
     int totalTime,
     double chartWidth,
+    double rowHeight,
+    double fontSize,
+    bool isEven,
   ) {
     final color = _colorFor(pid);
-    return SizedBox(
-      height: _rowHeight,
+    return Container(
+      height: rowHeight,
       width: chartWidth,
+      decoration: BoxDecoration(
+        color: isEven
+            ? AppTheme.bgDeep.withValues(alpha: 0.15)
+            : Colors.transparent,
+        border: Border(
+          bottom: BorderSide(color: AppTheme.borderDark, width: 0.3),
+        ),
+      ),
       child: Stack(
         children: [
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.bgElevated,
-                border: Border(
-                  bottom: BorderSide(color: AppTheme.border, width: 0.5),
-                ),
-              ),
-            ),
-          ),
+          // Líneas verticales de tiempo
           ...List.generate(totalTime + 1, (t) {
             if (t % _labelStep(totalTime) != 0) return const SizedBox.shrink();
             return Positioned(
@@ -240,33 +286,59 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
               top: 0,
               bottom: 0,
               width: 0.5,
-              child: Container(color: AppTheme.border.withValues(alpha: 0.4)),
+              child: Container(color: AppTheme.borderDark.withValues(alpha: 0.15)),
             );
           }),
+          // Bloques de proceso
           ...rowEntries.map((e) {
             final left = e.startTime * widget.timeScale;
             final width = (e.duration * widget.timeScale) - 1;
-            if (width <= 0) return const SizedBox.shrink();
+            if (width <= 1) {
+              return Positioned(
+                left: left,
+                top: 2,
+                height: rowHeight - 4,
+                width: 2,
+                child: Container(
+                  color: color,
+                ),
+              );
+            }
+
             return Positioned(
               left: left,
-              top: 3,
-              height: _rowHeight - 6,
+              top: 2,
+              height: rowHeight - 4,
               width: width,
               child: Container(
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.88),
-                  border: Border.all(color: color, width: 0.8),
+                  color: color.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.2),
+                      blurRadius: 2,
+                      spreadRadius: 0.5,
+                    ),
+                  ],
                 ),
                 alignment: Alignment.center,
                 child: width > 16
-                    ? Text(
-                        pid,
-                        overflow: TextOverflow.clip,
-                        style: TextStyle(
-                          color: AppTheme.bg,
-                          fontSize: width > 30 ? 9 : 7,
-                          fontWeight: FontWeight.w800,
+                    ? FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          pid,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: fontSize,
+                            fontWeight: FontWeight.w700,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withValues(alpha: 0.5),
+                                blurRadius: 2,
+                              ),
+                            ],
+                          ),
                         ),
                       )
                     : null,
@@ -282,9 +354,11 @@ class _GanttChartWidgetState extends State<GanttChartWidget> {
     if (totalTime <= 20) return 1;
     if (totalTime <= 50) return 5;
     if (totalTime <= 100) return 10;
+    if (totalTime <= 200) return 20;
     if (totalTime <= 500) return 25;
     if (totalTime <= 1000) return 50;
-    return 100;
+    if (totalTime <= 2000) return 100;
+    return 200;
   }
 }
 
@@ -302,42 +376,52 @@ class _RulerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final linePaint = Paint()
-      ..color = AppTheme.border
-      ..strokeWidth = 0.8;
+      ..color = AppTheme.borderDark
+      ..strokeWidth = 0.5;
 
-    const textStyle = TextStyle(color: AppTheme.sepia, fontSize: 9);
+    const textStyle = TextStyle(
+      color: AppTheme.textSecondary,
+      fontSize: 8,
+      fontWeight: FontWeight.w400,
+    );
 
+    // Fondo
     canvas.drawRect(
       Rect.fromLTWH(0, 0, size.width, size.height),
       Paint()..color = AppTheme.bgCard,
     );
 
+    // Línea inferior
     canvas.drawLine(
       Offset(0, size.height - 1),
       Offset(size.width, size.height - 1),
       linePaint,
     );
 
+    // Dibujar marcas de tiempo
     for (int t = 0; t <= totalTime; t++) {
       final x = t * timeScale;
       final isMajor = t % step == 0;
 
-      if (isMajor) {
+      if (isMajor && x <= size.width) {
+        // Línea principal
         canvas.drawLine(
           Offset(x, size.height - 10),
           Offset(x, size.height - 1),
-          linePaint..color = AppTheme.amber,
+          linePaint..color = AppTheme.neonAmber.withValues(alpha: 0.4),
         );
+        // Número
         final tp = TextPainter(
           text: TextSpan(text: '$t', style: textStyle),
           textDirection: TextDirection.ltr,
         )..layout();
         tp.paint(canvas, Offset(x - tp.width / 2, 2));
-      } else {
+      } else if (x <= size.width) {
+        // Línea secundaria
         canvas.drawLine(
           Offset(x, size.height - 5),
           Offset(x, size.height - 1),
-          linePaint..color = AppTheme.border,
+          linePaint..color = AppTheme.borderDark,
         );
       }
     }

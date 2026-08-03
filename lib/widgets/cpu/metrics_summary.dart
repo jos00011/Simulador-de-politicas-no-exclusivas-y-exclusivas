@@ -1,8 +1,8 @@
-// lib/widgets/metrics_summary.dart
+// lib/widgets/cpu/metrics_summary.dart
 
 import 'package:flutter/material.dart';
-import '../models/simulation_result.dart';
-import '../utils/app_theme.dart';
+import '../../models/simulation_result.dart';
+import '../../core/app_theme.dart';
 
 class MetricsSummaryWidget extends StatefulWidget {
   final SimulationResult result;
@@ -21,8 +21,14 @@ class _MetricsSummaryWidgetState extends State<MetricsSummaryWidget>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
-    _countAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    _countAnim = CurvedAnimation(
+      parent: _ctrl,
+      curve: Curves.easeOutCubic,
+    );
     Future.delayed(const Duration(milliseconds: 300), _ctrl.forward);
   }
 
@@ -52,17 +58,9 @@ class _MetricsSummaryWidgetState extends State<MetricsSummaryWidget>
   Widget _buildAveragesRow(double t) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.bgCard,
-        border: Border.all(color: AppTheme.amber.withValues(alpha: 0.35)),
-        borderRadius: BorderRadius.circular(4),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.amber.withValues(alpha: 0.05),
-            blurRadius: 24,
-            offset: const Offset(0, 4),
-          ),
-        ],
+      decoration: AppTheme.glassCard(
+        borderColor: AppTheme.neonAmber,
+        borderRadius: 12,
       ),
       child: Row(
         children: [
@@ -71,27 +69,27 @@ class _MetricsSummaryWidgetState extends State<MetricsSummaryWidget>
               label: 'Prom. Tiempo Retorno',
               value: (widget.result.avgTurnaroundTime * t).toStringAsFixed(2),
               unit: 'u.t.',
-              color: AppTheme.amber,
+              color: AppTheme.neonAmber,
               icon: Icons.timer_outlined,
             ),
           ),
-          Container(width: 1, height: 52, color: AppTheme.border),
+          Container(width: 1, height: 52, color: AppTheme.borderDark),
           Expanded(
             child: _AnimatedMetricTile(
               label: 'Prom. Tiempo Espera',
               value: (widget.result.avgWaitingTime * t).toStringAsFixed(2),
               unit: 'u.t.',
-              color: AppTheme.amberLight,
+              color: AppTheme.neonCyan,
               icon: Icons.hourglass_empty,
             ),
           ),
-          Container(width: 1, height: 52, color: AppTheme.border),
+          Container(width: 1, height: 52, color: AppTheme.borderDark),
           Expanded(
             child: _AnimatedMetricTile(
               label: 'Procesos',
               value: '${(widget.result.processes.length * t).round()}',
               unit: 'proc.',
-              color: AppTheme.sepia,
+              color: AppTheme.neonGreen,
               icon: Icons.memory,
             ),
           ),
@@ -109,7 +107,7 @@ class _MetricsSummaryWidgetState extends State<MetricsSummaryWidget>
           child: _StatCard(
             label: 'Uso CPU',
             value: '${cpuVal.toStringAsFixed(1)}%',
-            color: cpuVal > 80 ? AppTheme.amber : AppTheme.sepia,
+            color: cpuVal > 80 ? AppTheme.neonAmber : AppTheme.textSecondary,
             icon: Icons.speed,
             barFill: cpuVal / 100,
           ),
@@ -119,7 +117,7 @@ class _MetricsSummaryWidgetState extends State<MetricsSummaryWidget>
           child: _StatCard(
             label: 'Tiempo Total',
             value: '${widget.result.totalTime} u.t.',
-            color: AppTheme.sepia,
+            color: AppTheme.textSecondary,
             icon: Icons.timeline,
           ),
         ),
@@ -128,7 +126,7 @@ class _MetricsSummaryWidgetState extends State<MetricsSummaryWidget>
           child: _StatCard(
             label: 'Memoria Total',
             value: _formatMemory(widget.result.totalMemory),
-            color: AppTheme.sepia,
+            color: AppTheme.textSecondary,
             icon: Icons.storage,
           ),
         ),
@@ -137,7 +135,7 @@ class _MetricsSummaryWidgetState extends State<MetricsSummaryWidget>
           child: _StatCard(
             label: 'Política',
             value: widget.result.policy.displayName,
-            color: AppTheme.amberLight,
+            color: AppTheme.neonAmber,
             icon: Icons.account_tree_outlined,
           ),
         ),
@@ -176,7 +174,14 @@ class _AnimatedMetricTile extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 13),
             const SizedBox(width: 5),
-            Text(label, style: const TextStyle(color: AppTheme.sepia, fontSize: 9, letterSpacing: 0.5)),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 9,
+                letterSpacing: 0.5,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -185,11 +190,18 @@ class _AnimatedMetricTile extends StatelessWidget {
             children: [
               TextSpan(
                 text: value,
-                style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: color,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               TextSpan(
                 text: ' $unit',
-                style: const TextStyle(color: AppTheme.sepia, fontSize: 10),
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 10,
+                ),
               ),
             ],
           ),
@@ -230,9 +242,15 @@ class _StatCardState extends State<_StatCard> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: _hovered ? widget.color.withValues(alpha: 0.06) : AppTheme.bgCard,
-          border: Border.all(color: _hovered ? widget.color.withValues(alpha: 0.5) : AppTheme.border),
-          borderRadius: BorderRadius.circular(4),
+          color: _hovered
+              ? widget.color.withOpacity(0.06)
+              : AppTheme.bgCard,
+          border: Border.all(
+            color: _hovered
+                ? widget.color.withOpacity(0.5)
+                : AppTheme.borderDark,
+          ),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,10 +263,22 @@ class _StatCardState extends State<_StatCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.label,
-                          style: const TextStyle(color: AppTheme.sepia, fontSize: 9, letterSpacing: 0.5)),
-                      Text(widget.value,
-                          style: TextStyle(color: widget.color, fontSize: 13, fontWeight: FontWeight.w700)),
+                      Text(
+                        widget.label,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 9,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      Text(
+                        widget.value,
+                        style: TextStyle(
+                          color: widget.color,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -257,7 +287,7 @@ class _StatCardState extends State<_StatCard> {
             if (widget.barFill != null) ...[
               const SizedBox(height: 6),
               ClipRRect(
-                borderRadius: BorderRadius.circular(1),
+                borderRadius: BorderRadius.circular(2),
                 child: LinearProgressIndicator(
                   value: widget.barFill!.clamp(0.0, 1.0),
                   backgroundColor: AppTheme.bgElevated,
@@ -272,4 +302,3 @@ class _StatCardState extends State<_StatCard> {
     );
   }
 }
-

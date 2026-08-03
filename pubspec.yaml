@@ -1,22 +1,26 @@
 name: simulador_so
-description: Simulador de Planificación de Procesos - FCFS & SPN
+description: Simulador de Sistemas Operativos - Planificación, Memoria y Archivos
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.6.0 <4.0.0'  # Cambia esto
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  file_picker: ^6.1.1
-  csv: ^5.1.1
-  google_fonts: ^6.1.0
-  fl_chart: ^0.68.0
-  provider: ^6.1.1
+  
+  # ↑↑↑ ACTUALIZADO a versión compatible ↑↑↑
+  file_picker: ^8.1.4
+  provider: ^6.1.2
   intl: ^0.19.0
   path_provider: ^2.1.2
   share_plus: ^7.2.2
+  
+  # Estas dependencias no las usas en el código, puedes eliminarlas:
+  # csv: ^5.1.1       ← NO SE USA
+  # google_fonts: ^6.1.0  ← NO SE USA
+  # fl_chart: ^0.68.0    ← NO SE USA
 
 dev_dependencies:
   flutter_test:

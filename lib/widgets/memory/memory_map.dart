@@ -1,9 +1,10 @@
-// lib/widgets/memory_map.dart
+// lib/widgets/memory/memory_map.dart
+// VERSIÓN OPTIMIZADA - Sin lag
 
 import 'package:flutter/material.dart';
-import '../models/memory_block.dart';
-import '../models/memory_result.dart';
-import '../utils/app_theme.dart';
+import '../../models/memory_block.dart';
+import '../../models/memory_result.dart';
+import '../../core/app_theme.dart';
 
 class MemoryMapWidget extends StatefulWidget {
   final List<MemoryBlock> blocks;
@@ -46,7 +47,7 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
   }
 
   Color _blockColor(MemoryBlock b) {
-    if (b.isFree) return AppTheme.border;
+    if (b.isFree) return AppTheme.borderDark;
     return AppTheme.processColor(b.processId ?? '?');
   }
 
@@ -61,9 +62,9 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (widget.showRamView) ...[
-          _buildRamView(),
+          _buildRamViewOptimized(),
           const SizedBox(height: 16),
-          const Divider(color: AppTheme.border),
+          const Divider(color: AppTheme.borderDark),
           const SizedBox(height: 12),
         ],
         _buildBar(),
@@ -79,34 +80,11 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
     );
   }
 
-  // ─── RAM View ────────────────────────────────────────────────────────────────
-  Widget _buildRamView() {
-    const cellsPerRow = 32;
+  // ─── RAM VIEW OPTIMIZADA ─────────────────────────────────────
+  Widget _buildRamViewOptimized() {
+    // ⚡ SOLO MOSTRAMOS VISTA PREVIA CUANDO LA MEMORIA ES GRANDE
     final totalCells = widget.totalMemory;
-    final cellSize = 14.0;
-
-    // Build a per-KB color map
-    final colorMap = <int, Color>{};
-    final labelMap = <int, String>{};
-    for (final b in widget.blocks) {
-      for (int k = b.startAddress; k < b.startAddress + b.size; k++) {
-        if (b.isFree) {
-          colorMap[k] = AppTheme.border.withValues(alpha: 0.3);
-        } else {
-          final base = _blockColor(b);
-          // Internal fragmentation bytes are shown darker
-          final processSize = b.size;
-          final buddySize = b.buddyAllocatedSize ?? b.size;
-          final internalStart = b.startAddress + processSize;
-          if (k >= internalStart && k < b.startAddress + buddySize) {
-            colorMap[k] = base.withValues(alpha: 0.25); // wasted
-          } else {
-            colorMap[k] = base.withValues(alpha: 0.85);
-          }
-          labelMap[k] = b.processId ?? '';
-        }
-      }
-    }
+    final maxCellsToShow = 2048; // Límite para evitar lag
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,20 +92,27 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
         Row(
           children: [
             Container(
-                width: 3,
-                height: 13,
-                color: AppTheme.amberLight,
-                margin: const EdgeInsets.only(right: 6)),
-            const Text('VISTA RAM — MAPA DE CELDAS',
-                style: TextStyle(
-                    color: AppTheme.amberLight,
-                    fontSize: 9,
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.w700)),
+              width: 3,
+              height: 13,
+              color: AppTheme.neonPurple,
+              margin: const EdgeInsets.only(right: 6),
+            ),
+            const Text(
+              'VISTA RAM — MAPA DE CELDAS',
+              style: TextStyle(
+                color: AppTheme.neonPurple,
+                fontSize: 9,
+                letterSpacing: 2,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(width: 10),
-            const Text('(cada celda = 1 KB)',
-                style:
-                    TextStyle(color: AppTheme.sepia, fontSize: 8)),
+            Text(
+              totalCells > maxCellsToShow
+                  ? '(vista simplificada: ${totalCells} KB totales)'
+                  : '(cada celda = 1 KB)',
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 8),
+            ),
             const Spacer(),
             _ramLegend(),
           ],
@@ -137,71 +122,197 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: AppTheme.bgElevated,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: AppTheme.border),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppTheme.borderDark),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Row numbers
-              for (int row = 0;
-                  row < (totalCells / cellsPerRow).ceil();
-                  row++) ...[
-                Row(
-                  children: [
-                    // Row address label
-                    SizedBox(
-                      width: 36,
-                      child: Text(
-                        '${row * cellsPerRow}',
-                        style: const TextStyle(
-                            color: AppTheme.sepia,
-                            fontSize: 7,
-                            fontFamily: 'monospace'),
-                      ),
-                    ),
-                    // Cells
-                    ...List.generate(cellsPerRow, (col) {
-                      final addr = row * cellsPerRow + col;
-                      if (addr >= totalCells) {
-                        return SizedBox(width: cellSize, height: cellSize);
-                      }
-                      final color =
-                          colorMap[addr] ?? AppTheme.border.withValues(alpha: 0.2);
-                      final label = labelMap[addr] ?? '';
-                      return Tooltip(
-                        message:
-                            'Dirección: $addr KB${label.isNotEmpty ? ' · $label' : ' · LIBRE'}',
-                        child: Container(
-                          width: cellSize,
-                          height: cellSize,
-                          margin: const EdgeInsets.all(0.5),
-                          decoration: BoxDecoration(
-                            color: color,
-                            borderRadius: BorderRadius.circular(1),
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-                const SizedBox(height: 1),
-              ],
-            ],
-          ),
+          child: totalCells > maxCellsToShow
+              ? _buildCompactRamView()
+              : _buildFullRamView(),
         ),
       ],
+    );
+  }
+
+  Widget _buildFullRamView() {
+    const cellsPerRow = 32;
+    final totalCells = widget.totalMemory;
+    final cellSize = 12.0;
+
+    final colorMap = <int, Color>{};
+    final labelMap = <int, String>{};
+    for (final b in widget.blocks) {
+      for (int k = b.startAddress; k < b.startAddress + b.size && k < totalCells; k++) {
+        if (b.isFree) {
+          colorMap[k] = AppTheme.borderDark.withValues(alpha: 0.3);
+        } else {
+          final base = _blockColor(b);
+          final processSize = b.size;
+          final buddySize = b.buddyAllocatedSize ?? b.size;
+          final internalStart = b.startAddress + processSize;
+          if (k >= internalStart && k < b.startAddress + buddySize) {
+            colorMap[k] = base.withValues(alpha: 0.25);
+          } else {
+            colorMap[k] = base.withValues(alpha: 0.85);
+          }
+          labelMap[k] = b.processId ?? '';
+        }
+      }
+    }
+
+    final rows = (totalCells / cellsPerRow).ceil();
+    return SingleChildScrollView(
+      scrollDirection: Axis.vertical,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (int row = 0; row < rows; row++) ...[
+            Row(
+              children: [
+                SizedBox(
+                  width: 32,
+                  child: Text(
+                    '${row * cellsPerRow}',
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 6,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+                ...List.generate(cellsPerRow, (col) {
+                  final addr = row * cellsPerRow + col;
+                  if (addr >= totalCells) {
+                    return SizedBox(width: cellSize, height: cellSize);
+                  }
+                  final color = colorMap[addr] ?? AppTheme.borderDark.withValues(alpha: 0.2);
+                  final label = labelMap[addr] ?? '';
+                  return Tooltip(
+                    message: '${addr}KB${label.isNotEmpty ? ' · $label' : ' · LIBRE'}',
+                    child: Container(
+                      width: cellSize,
+                      height: cellSize,
+                      margin: const EdgeInsets.all(0.5),
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+            const SizedBox(height: 1),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactRamView() {
+    // ⚡ VISTA COMPACTA - Agrupa KB en bloques de 4 para reducir celdas
+    const blockSize = 4;
+    final totalCells = widget.totalMemory;
+    final blocks = (totalCells / blockSize).ceil();
+
+    // Construir mapa de colores agrupados
+    final colorMap = <int, Color>{};
+    final labelMap = <int, String>{};
+
+    for (int i = 0; i < totalCells; i += blockSize) {
+      final blockEnd = (i + blockSize).clamp(0, totalCells);
+      // Determinar el color dominante en este bloque
+      Color? dominantColor;
+      String? dominantLabel;
+      int freeCount = 0;
+      int occupiedCount = 0;
+
+      for (int k = i; k < blockEnd; k++) {
+        bool found = false;
+        for (final b in widget.blocks) {
+          if (k >= b.startAddress && k < b.startAddress + b.size) {
+            if (b.isFree) {
+              freeCount++;
+            } else {
+              occupiedCount++;
+              dominantColor = _blockColor(b);
+              dominantLabel = b.processId ?? '';
+            }
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          freeCount++;
+        }
+      }
+
+      final color = dominantColor ?? AppTheme.borderDark;
+      final alpha = occupiedCount > freeCount ? 0.7 : 0.2;
+      colorMap[i] = color.withValues(alpha: alpha);
+      labelMap[i] = dominantLabel ?? '';
+    }
+
+    const cellsPerRow = 64;
+    final rows = (blocks / cellsPerRow).ceil();
+    final cellSize = 8.0;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.vertical,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (int row = 0; row < rows; row++) ...[
+            Row(
+              children: [
+                SizedBox(
+                  width: 32,
+                  child: Text(
+                    '${row * cellsPerRow * blockSize}',
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 6,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+                ...List.generate(cellsPerRow, (col) {
+                  final idx = row * cellsPerRow + col;
+                  if (idx >= blocks) {
+                    return SizedBox(width: cellSize, height: cellSize);
+                  }
+                  final addr = idx * blockSize;
+                  final color = colorMap[addr] ?? AppTheme.borderDark.withValues(alpha: 0.2);
+                  final label = labelMap[addr] ?? '';
+                  return Tooltip(
+                    message: '${addr}KB${label.isNotEmpty ? ' · $label' : ' · LIBRE'}',
+                    child: Container(
+                      width: cellSize,
+                      height: cellSize,
+                      margin: const EdgeInsets.all(0.5),
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+            const SizedBox(height: 1),
+          ],
+        ],
+      ),
     );
   }
 
   Widget _ramLegend() {
     return Row(
       children: [
-        _legendDot(AppTheme.amber.withValues(alpha: 0.85), 'Proceso'),
+        _legendDot(AppTheme.neonAmber.withValues(alpha: 0.85), 'Proceso'),
         const SizedBox(width: 8),
-        _legendDot(AppTheme.amber.withValues(alpha: 0.25), 'Frag. interna'),
+        _legendDot(AppTheme.neonAmber.withValues(alpha: 0.25), 'Frag. interna'),
         const SizedBox(width: 8),
-        _legendDot(AppTheme.border.withValues(alpha: 0.3), 'Libre'),
+        _legendDot(AppTheme.borderDark.withValues(alpha: 0.3), 'Libre'),
       ],
     );
   }
@@ -210,34 +321,37 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
     return Row(
       children: [
         Container(
-            width: 8,
-            height: 8,
-            decoration:
-                BoxDecoration(color: c, borderRadius: BorderRadius.circular(1))),
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: c,
+            borderRadius: BorderRadius.circular(1),
+          ),
+        ),
         const SizedBox(width: 3),
-        Text(label,
-            style:
-                const TextStyle(color: AppTheme.sepia, fontSize: 8)),
+        Text(
+          label,
+          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 8),
+        ),
       ],
     );
   }
 
-  // ─── Horizontal bar ──────────────────────────────────────────────────────────
+  // ─── BARRA HORIZONTAL ─────────────────────────────────────────
   Widget _buildBar() {
     return LayoutBuilder(builder: (context, constraints) {
       final total = widget.totalMemory.toDouble();
       return Container(
         height: _isBuddy ? 64 : 48,
         decoration: BoxDecoration(
-          border: Border.all(color: AppTheme.border),
-          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: AppTheme.borderDark),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(3),
+          borderRadius: BorderRadius.circular(7),
           child: Row(
             children: widget.blocks.map((b) {
-              final displaySize =
-                  _isBuddy ? (b.buddyAllocatedSize ?? b.size) : b.size;
+              final displaySize = _isBuddy ? (b.buddyAllocatedSize ?? b.size) : b.size;
               final flex = (displaySize / total * 10000).round().clamp(1, 100000);
               final isHighlighted = widget.highlightBlock?.id == b.id;
               final isHovered = _hovered?.id == b.id;
@@ -265,7 +379,6 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
                                 '${b.buddyAllocatedSize != null ? ' (bloque ${b.buddyAllocatedSize} KB)' : ''}',
                         child: Stack(
                           children: [
-                            // Full buddy block (allocated size)
                             Container(
                               decoration: BoxDecoration(
                                 color: color.withValues(alpha: opacity),
@@ -279,14 +392,10 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
                                 children: [
                                   if (displaySize / widget.totalMemory > 0.05)
                                     Text(
-                                      b.isFree
-                                          ? '··'
-                                          : (b.processId ?? ''),
+                                      b.isFree ? '··' : (b.processId ?? ''),
                                       overflow: TextOverflow.clip,
                                       style: TextStyle(
-                                        color: b.isFree
-                                            ? AppTheme.sepia
-                                            : AppTheme.bg,
+                                        color: b.isFree ? AppTheme.textSecondary : AppTheme.bgDeep,
                                         fontSize: 9,
                                         fontWeight: FontWeight.w800,
                                       ),
@@ -298,14 +407,13 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
                                     Text(
                                       '${b.buddyAllocatedSize}KB',
                                       style: TextStyle(
-                                        color: AppTheme.bg.withValues(alpha: 0.7),
+                                        color: AppTheme.bgDeep.withValues(alpha: 0.7),
                                         fontSize: 7,
                                       ),
                                     ),
                                 ],
                               ),
                             ),
-                            // Internal fragmentation overlay (striped)
                             if (_isBuddy &&
                                 b.isOccupied &&
                                 b.buddyAllocatedSize != null &&
@@ -348,7 +456,7 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
     });
   }
 
-  // ─── Address labels ──────────────────────────────────────────────────────────
+  // ─── ETIQUETAS DE DIRECCIONES ──────────────────────────────
   Widget _buildAddressLabels() {
     return LayoutBuilder(builder: (context, constraints) {
       final total = widget.totalMemory.toDouble();
@@ -371,7 +479,7 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
               left: (x - 12).clamp(0, constraints.maxWidth - 24),
               child: Text(
                 '$addr',
-                style: const TextStyle(color: AppTheme.sepia, fontSize: 8),
+                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 8),
               ),
             );
           }).toList(),
@@ -380,7 +488,7 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
     });
   }
 
-  // ─── Buddy level legend ──────────────────────────────────────────────────────
+  // ─── LEYENDA DE NIVELES BUDDY ──────────────────────────────
   Widget _buildBuddyLevelLegend() {
     final levels = widget.blocks
         .where((b) => b.buddyLevel != null)
@@ -395,23 +503,29 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
       spacing: 6,
       runSpacing: 4,
       children: [
-        const Text('NIVELES GEMELO:',
-            style: TextStyle(
-                color: AppTheme.sepia, fontSize: 9, letterSpacing: 1.5)),
+        const Text(
+          'NIVELES GEMELO:',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 9,
+            letterSpacing: 1.5,
+          ),
+        ),
         ...levels.map((lvl) => Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
                 border: Border.all(
-                    color: AppTheme.amberLight.withValues(alpha: 0.4)),
-                borderRadius: BorderRadius.circular(2),
+                  color: AppTheme.neonPurple.withValues(alpha: 0.4),
+                ),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
                 'L$lvl = ${_pow2(lvl)} KB',
                 style: const TextStyle(
-                    color: AppTheme.amberLight,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w700),
+                  color: AppTheme.neonPurple,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             )),
       ],
@@ -420,12 +534,17 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
 
   int _pow2(int n) => 1 << n;
 
-  // ─── Block list ──────────────────────────────────────────────────────────────
+  // ─── LISTA DE BLOQUES ──────────────────────────────────────
   Widget _buildBlockList() {
+    // ⚡ LIMITAR BLOQUES MOSTRADOS PARA EVITAR LAG
+    final blocksToShow = widget.blocks.length > 50
+        ? widget.blocks.take(50).toList()
+        : widget.blocks;
+
     return Wrap(
       spacing: 6,
       runSpacing: 6,
-      children: widget.blocks.map((b) {
+      children: blocksToShow.map((b) {
         final color = _blockColor(b);
         final isHighlighted = widget.highlightBlock?.id == b.id;
         final internalFrag = b.buddyAllocatedSize != null
@@ -433,8 +552,7 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
             : 0;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: b.isFree
                 ? AppTheme.bgElevated
@@ -443,11 +561,11 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
               color: isHighlighted
                   ? color
                   : (b.isFree
-                      ? AppTheme.border
+                      ? AppTheme.borderDark
                       : color.withValues(alpha: 0.4)),
               width: isHighlighted ? 1.5 : 1,
             ),
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -463,7 +581,7 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
                         ? 'LIBRE ${b.size} KB'
                         : '${b.processId} ${b.size} KB',
                     style: TextStyle(
-                      color: b.isFree ? AppTheme.sepia : color,
+                      color: b.isFree ? AppTheme.textSecondary : color,
                       fontSize: 9,
                       fontWeight: FontWeight.w600,
                     ),
@@ -472,21 +590,27 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
                     Text(
                       'bloque: ${b.buddyAllocatedSize} KB  ·  frag.int: $internalFrag KB',
                       style: TextStyle(
-                          color: Colors.orange.shade300, fontSize: 7),
+                        color: AppTheme.neonOrange,
+                        fontSize: 7,
+                      ),
                     ),
                   if (_isBuddy && b.buddyLevel != null)
                     Text(
                       'nivel L${b.buddyLevel}',
                       style: const TextStyle(
-                          color: AppTheme.amberLight, fontSize: 7),
+                        color: AppTheme.neonPurple,
+                        fontSize: 7,
+                      ),
                     ),
                 ],
               ),
               const SizedBox(width: 4),
               Text(
                 '@${b.startAddress}',
-                style:
-                    const TextStyle(color: AppTheme.sepia, fontSize: 8),
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 8,
+                ),
               ),
             ],
           ),
@@ -496,7 +620,6 @@ class _MemoryMapWidgetState extends State<MemoryMapWidget>
   }
 }
 
-/// Diagonal stripe painter for internal fragmentation visualization
 class _StripePainter extends CustomPainter {
   final Color color;
   const _StripePainter(this.color);
